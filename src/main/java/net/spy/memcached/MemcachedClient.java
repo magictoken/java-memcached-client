@@ -971,6 +971,7 @@ public class MemcachedClient extends SpyThread
 					}
 				}
 				if(node == null) {
+					getLogger().error("Node %s is inactive, but still assigned to perform op!", primaryNode);
 					node=primaryNode;
 				}
 			}
