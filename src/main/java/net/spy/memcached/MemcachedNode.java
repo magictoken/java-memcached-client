@@ -174,4 +174,24 @@ public interface MemcachedNode {
 	 */
 	void fixupOps();
 
+	
+	/**
+	 * increment the number of timeouts on the node. MemcachedConnection will reconnect it
+	 * if timeouts reach a critical configured number. Returns the number after it has been incremented 
+	 */
+	int timedOut();
+
+	/**
+	 * reset the counter incremented in timedOut to 0. Can probably keep success/failure ratio
+	 * instead: then we could identify and blacklist nodes that rarely succeed but not
+	 * completely dead
+	 */
+	void resetTimeoutCounter();
+
+	/**
+	 * get number of timeouts on this node since the last resetTimeoutCounter
+	 * @return
+	 */
+	int getNumTimeouts();
+
 }

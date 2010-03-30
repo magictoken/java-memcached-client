@@ -142,4 +142,20 @@ class MemcachedNodeROImpl implements MemcachedNode {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
+	public void resetTimeoutCounter() {
+		throw new UnsupportedOperationException();
+		
+	}
+
+	@Override
+	public int timedOut() {
+		throw new UnsupportedOperationException();
+	}
+	
+	@Override
+	public int getNumTimeouts() {
+		throw new UnsupportedOperationException();
+	}
+
 }
