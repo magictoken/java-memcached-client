@@ -14,7 +14,7 @@ import java.util.Collection;
 import net.spy.memcached.ops.Operation;
 
 public class MockMemcachedNode implements MemcachedNode {
-	private final InetSocketAddress socketAddress;
+		private final InetSocketAddress socketAddress;
 	public SocketAddress getSocketAddress() {return socketAddress;}
 
 	public MockMemcachedNode(InetSocketAddress socketAddress) {
@@ -101,4 +101,19 @@ public class MockMemcachedNode implements MemcachedNode {
 	public Collection<Operation> destroyInputQueue() {
 		return null;
 	}
+	@Override
+	public void resetTimeoutCounter() {
+		// noop
+	}
+
+	@Override
+	public int timedOut() {
+		return 0;
+	}
+	@Override
+	public int getNumTimeouts() {
+		return 0;
+	}
+
+
 }

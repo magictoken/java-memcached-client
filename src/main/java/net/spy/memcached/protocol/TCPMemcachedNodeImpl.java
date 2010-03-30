@@ -1,4 +1,4 @@
-package net.spy.memcached.protocol;
+ package net.spy.memcached.protocol;
 
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -22,6 +22,7 @@ import net.spy.memcached.ops.OperationState;
 public abstract class TCPMemcachedNodeImpl extends SpyObject
 	implements MemcachedNode {
 
+
 	private final SocketAddress socketAddress;
 	private final ByteBuffer rbuf;
 	private final ByteBuffer wbuf;
@@ -36,6 +37,7 @@ public abstract class TCPMemcachedNodeImpl extends SpyObject
 	private int toWrite=0;
 	protected Operation optimizedOp=null;
 	private volatile SelectionKey sk=null;
+	private volatile int numTimeouts=0;
 
 	public TCPMemcachedNodeImpl(SocketAddress sa, SocketChannel c,
 			int bufSize, BlockingQueue<Operation> rq,
@@ -67,7 +69,6 @@ public abstract class TCPMemcachedNodeImpl extends SpyObject
 
 		// don't drain more than we have space to place
 		inputQueue.drainTo(tmp, writeQ.remainingCapacity());
-
 		writeQ.addAll(tmp);
 	}
 
@@ -310,8 +311,9 @@ public abstract class TCPMemcachedNodeImpl extends SpyObject
 	 * @see net.spy.memcached.MemcachedNode#isActive()
 	 */
 	public final boolean isActive() {
-		return reconnectAttempt == 0
+		boolean ret = reconnectAttempt == 0
 			&& getChannel() != null && getChannel().isConnected();
+		return ret;
 	}
 
 	/* (non-Javadoc)
@@ -428,4 +430,23 @@ public abstract class TCPMemcachedNodeImpl extends SpyObject
 			getLogger().debug("Selection key is not valid.");
 		}
 	}
+
+	@Override
+	public void resetTimeoutCounter() {
+		numTimeouts = 0;
+	}
+
+	@Override
+	public int timedOut() {
+		int ret = ++numTimeouts;
+		getLogger().warn("%s timed out %d (%s)", this.getSocketAddress(), ret, this.hashCode());
+		return ret;
+	}
+	
+	@Override
+	public int getNumTimeouts() {
+		return numTimeouts;
+	}
+
+
 }
