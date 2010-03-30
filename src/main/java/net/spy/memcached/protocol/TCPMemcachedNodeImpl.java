@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.spy.memcached.MemcachedNode;
 import net.spy.memcached.compat.SpyObject;
@@ -37,7 +38,7 @@ public abstract class TCPMemcachedNodeImpl extends SpyObject
 	private int toWrite=0;
 	protected Operation optimizedOp=null;
 	private volatile SelectionKey sk=null;
-	private volatile int numTimeouts=0;
+	private AtomicInteger numTimeouts = new AtomicInteger(0);
 
 	public TCPMemcachedNodeImpl(SocketAddress sa, SocketChannel c,
 			int bufSize, BlockingQueue<Operation> rq,
@@ -433,19 +434,19 @@ public abstract class TCPMemcachedNodeImpl extends SpyObject
 
 	@Override
 	public void resetTimeoutCounter() {
-		numTimeouts = 0;
+		numTimeouts.set(0);
 	}
 
 	@Override
 	public int timedOut() {
-		int ret = ++numTimeouts;
-		getLogger().warn("%s timed out %d (%s)", this.getSocketAddress(), ret, this.hashCode());
+		final int ret = numTimeouts.incrementAndGet();
+		getLogger().warn("%s timed out %d times (%s)", this.getSocketAddress(), ret, this.hashCode());
 		return ret;
 	}
 	
 	@Override
 	public int getNumTimeouts() {
-		return numTimeouts;
+		return numTimeouts.get();
 	}
 
 
