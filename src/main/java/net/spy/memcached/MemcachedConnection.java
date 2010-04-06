@@ -207,6 +207,7 @@ public final class MemcachedConnection extends SpyObject {
 						getLogger().info("%s has a ready op, handling IO", sk);
 						handleIO(sk);
 					} else {
+						getLogger().error("%s has no ready ops, %d empty selects, assume lost connection", sk, emptySelects);
 						lostConnection((MemcachedNode)sk.attachment());
 					}
 				}
@@ -281,7 +282,7 @@ public final class MemcachedConnection extends SpyObject {
 							handleWrites(qa.getSk(), qa);
 						}
 					} catch(IOException e) {
-						getLogger().warn("Exception handling write", e);
+						getLogger().error("Exception handling write", e);
 						lostConnection(qa);
 					}
 				}
@@ -357,7 +358,7 @@ public final class MemcachedConnection extends SpyObject {
 			}
 		} catch(ClosedChannelException e) {
 			if(!shutDown) {
-				getLogger().warn("Closed channel and not shutting down.  "
+				getLogger().error("Closed channel and not shutting down.  "
 					+ "Queueing reconnect on %s", qa, e);
 				lostConnection(qa);
 			}
