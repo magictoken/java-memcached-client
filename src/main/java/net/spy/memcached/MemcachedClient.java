@@ -1581,7 +1581,7 @@ public class MemcachedClient extends SpyThread
 			// shutdown sequence that are considered OK.  Log at debug.
 			getLogger().debug("Exception occurred during shutdown", e);
 		} else {
-			getLogger().warn("Problem handling memcached IO", e);
+			getLogger().error("Problem handling memcached IO", e);
 		}
 	}
 

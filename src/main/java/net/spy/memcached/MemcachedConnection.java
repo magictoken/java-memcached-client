@@ -331,7 +331,10 @@ public final class MemcachedConnection extends SpyObject {
 	private void handleIO(SelectionKey sk) {
 		MemcachedNode qa=(MemcachedNode)sk.attachment();
 		try {
-			timedOutReconnect(qa);
+			if(timedOutReconnect(qa)){
+				//too many timeouts found on this node, it's placed on reconnect queue
+				return;
+			}
 			getLogger().debug(
 					"Handling IO for:  %s (r=%s, w=%s, c=%s, op=%s)",
 					sk, sk.isReadable(), sk.isWritable(),
@@ -365,14 +368,14 @@ public final class MemcachedConnection extends SpyObject {
 		} catch(ConnectException e) {
 			// Failures to establish a connection should attempt a reconnect
 			// without signaling the observers.
-			getLogger().warn("Reconnecting due to failure to connect to %s",
+			getLogger().error("Reconnecting due to failure to connect to %s",
 					qa, e);
 			queueReconnect(qa);
 		} catch(Exception e) {
 			// Various errors occur on Linux that wind up here.  However, any
 			// particular error processing an item should simply cause us to
 			// reconnect to the server.
-			getLogger().warn("Reconnecting due to exception on %s", qa, e);
+			getLogger().error("Reconnecting due to exception on %s", qa, e);
 			lostConnection(qa);
 		}
 		qa.fixupOps();
@@ -448,14 +451,17 @@ public final class MemcachedConnection extends SpyObject {
 			}
 			qa.reconnecting();
 			try {
-				if(qa.getChannel() != null && qa.getChannel().socket() != null) {
-					qa.getChannel().socket().close();
+				if (qa.getChannel() != null) {
+					if (qa.getChannel().socket() != null) {
+						qa.getChannel().socket().close();
+					} else {
+						getLogger().error("socket was null for %s", qa);
+					}
 				} else {
-					getLogger().info("The channel or socket was null for %s",
-						qa);
+					getLogger().error("The channel was null for %s", qa);
 				}
-			} catch(IOException e) {
-				getLogger().warn("IOException trying to close a socket", e);
+			} catch (IOException e) {
+				getLogger().error("IOException trying to close a socket", e);
 			}
 			qa.setChannel(null);
 
@@ -465,7 +471,7 @@ public final class MemcachedConnection extends SpyObject {
 
 			// Avoid potential condition where two connections are scheduled
 			// for reconnect at the exact same time.  This is expected to be
-			// a rare situation.
+			// a rare situation. 
 			while(reconnectQueue.containsKey(reconTime)) {
 				reconTime++;
 			}
@@ -518,13 +524,14 @@ public final class MemcachedConnection extends SpyObject {
 				reconnectQueue.headMap(now).values().iterator(); i.hasNext();) {
 			final MemcachedNode qa=i.next();
 			getLogger().info("attempting to reconnect %s (%s)", qa.getSocketAddress(), qa.hashCode());
+			SocketChannel ch = null; 
 			try {
 				i.remove();
 				
 				if(!seen.containsKey(qa)) {
 					seen.put(qa, Boolean.TRUE);
 					getLogger().info("Reconnecting %s", qa);
-					final SocketChannel ch=SocketChannel.open();
+					ch=SocketChannel.open();
 					ch.configureBlocking(false);
 					int ops=0;
 					if(ch.connect(qa.getSocketAddress())) {
@@ -539,20 +546,28 @@ public final class MemcachedConnection extends SpyObject {
 					getLogger().info(
 						"Skipping duplicate reconnect request for %s", qa);
 				}
-			} catch(SocketException e) {
-				getLogger().warn("Error on reconnect %s (%s)", qa.getSocketAddress(), qa.hashCode(), e);
+			} catch(IOException e) {
+				 getLogger().warn("Error on reconnect %s (%s)", qa.getSocketAddress(), qa.hashCode(), e);
 				rereQueue.add(qa);
 			}
 			catch(Exception e) {
 				getLogger().error("Exception on reconnect, lost node %s (%s)", qa.getSocketAddress(), qa.hashCode(), e);
 			}
+			finally {
+				if (!ch.isConnected() && !ch.isConnectionPending()) {
+					try {
+						ch.close();
+					} catch (IOException x) {
+					}
+				}
+			}
 		}
 		// Requeue any fast-failed connects.
 		for(MemcachedNode n : rereQueue) {
-			getLogger().warn("Could not reconnect %s, re-queing (%s)", n.getSocketAddress(), n.hashCode());
+			getLogger().error("Could not reconnect %s, re-queing (%s)", n.getSocketAddress(), n.hashCode());
 			queueReconnect(n);
 		}
-	}
+	}	
 
 	/**
 	 * Get the node locator used by this connection.
@@ -696,13 +711,15 @@ public final class MemcachedConnection extends SpyObject {
 		return sb.toString();
 	}
 	
-	private void timedOutReconnect(MemcachedNode mn) {
+	private boolean timedOutReconnect(MemcachedNode mn) {
 		//TODO: expose as property on connection factory
 		if(mn.getNumTimeouts() > 100){
 			mn.resetTimeoutCounter();
 			getLogger().error("handleIO: too many timeouts to %s, trying to reconnect. (%s)", mn.getSocketAddress(), mn.hashCode());
 			lostConnection(mn);
+			return true;
 		}
+		return false;
 	}
 	
 	/**
