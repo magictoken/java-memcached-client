@@ -67,21 +67,6 @@ public final class MemcachedConnection extends SpyObject {
 		new ConcurrentLinkedQueue<ConnectionObserver>();
 	private final OperationFactory opFact;
 	private final int timeoutExceptionThreshold;
-	// timeout counter
-	private static AtomicInteger continuousTimeout = new AtomicInteger(0);
-
-	/**
-	 * whenever timeout exception occur, timeout counter increase by 1 until timeout exception threshold
-	 * but, if isIncrease is false, timeout counter will be reset
-	 * @param isIncrease
-	 */
-	public static void setContinuousTimeout(boolean isIncrease) {
-		if (isIncrease) {
-			continuousTimeout.getAndAdd(1);
-		} else {
-			continuousTimeout.set(0);
-		}
-	}
 
 	/**
 	 * Construct a memcached connection.
@@ -230,13 +215,7 @@ public final class MemcachedConnection extends SpyObject {
 					selected, selectedKeys.size());
 			emptySelects=0;
 			for(SelectionKey sk : selectedKeys) {
-				MemcachedNode mn = (MemcachedNode)sk.attachment();
-				if (continuousTimeout.get() > timeoutExceptionThreshold) {
-					lostConnection(mn);
-				} else {
-					// regular transaction
-					handleIO(sk);
-				}
+			    handleIO(sk);
 			} // for each selector
 			selectedKeys.clear();
 		}
@@ -547,14 +526,14 @@ public final class MemcachedConnection extends SpyObject {
 						"Skipping duplicate reconnect request for %s", qa);
 				}
 			} catch(IOException e) {
-				 getLogger().warn("Error on reconnect %s (%s)", qa.getSocketAddress(), qa.hashCode(), e);
+				 getLogger().error("Error on reconnect %s (%s)", qa.getSocketAddress(), qa.hashCode(), e);
 				rereQueue.add(qa);
 			}
 			catch(Exception e) {
 				getLogger().error("Exception on reconnect, lost node %s (%s)", qa.getSocketAddress(), qa.hashCode(), e);
 			}
 			finally {
-				if (!ch.isConnected() && !ch.isConnectionPending()) {
+				if (ch != null && !ch.isConnected() && !ch.isConnectionPending()) {
 					try {
 						ch.close();
 					} catch (IOException x) {
@@ -712,7 +691,6 @@ public final class MemcachedConnection extends SpyObject {
 	}
 	
 	private boolean timedOutReconnect(MemcachedNode mn) {
-		//TODO: expose as property on connection factory
 		if(mn.getNumTimeouts() > 100){
 			mn.resetTimeoutCounter();
 			getLogger().error("handleIO: too many timeouts to %s, trying to reconnect. (%s)", mn.getSocketAddress(), mn.hashCode());

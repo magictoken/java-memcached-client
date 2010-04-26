@@ -1602,6 +1602,11 @@ public class MemcachedClient extends SpyThread
 			} catch(IllegalStateException e) {
 				logRunException(e);
 			}
+			//catchall: we still don't want to stop processing, 
+			//even on unchecked exceptions
+			catch(Exception e) {
+                logRunException(e);
+            }
 		}
 		getLogger().info("Shut down memcached client");
 	}

@@ -61,13 +61,11 @@ public class OperationFuture<T> implements Future<T> {
 		throws InterruptedException, TimeoutException, ExecutionException {
 		if(!latch.await(duration, units)) {
 			// whenever timeout occurs, continuous timeout counter will increase by 1.
-			MemcachedConnection.setContinuousTimeout(true);
 			MemcachedConnection.opTimedOut(op);
 			throw new CheckedOperationTimeoutException(
 					"Timed out waiting for operation", op);
 		} else {
 			// continuous timeout counter will be reset
-			MemcachedConnection.setContinuousTimeout(false);
 			MemcachedConnection.opSucceeded(op);
 		}
 		if(op != null && op.hasErrored()) {
