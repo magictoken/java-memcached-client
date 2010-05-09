@@ -691,7 +691,7 @@ public final class MemcachedConnection extends SpyObject {
 	}
 	
 	private boolean timedOutReconnect(MemcachedNode mn) {
-		if(mn.getNumTimeouts() > 100){
+		if(mn.getNumTimeouts() > timeoutExceptionThreshold){
 			mn.resetTimeoutCounter();
 			getLogger().error("handleIO: too many timeouts to %s, trying to reconnect. (%s)", mn.getSocketAddress(), mn.hashCode());
 			lostConnection(mn);
